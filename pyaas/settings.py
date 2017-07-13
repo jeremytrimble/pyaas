@@ -5,6 +5,7 @@ import argparse
 import collections
 import logging
 import time
+import glob
 
 try:
     import configparser
@@ -72,11 +73,27 @@ def load(settings=None, namespace=None, prefix=None):
     pyaas.config = configparser.SafeConfigParser(dict_type=collections.OrderedDict)
     pyaas.config.optionxform = str
 
+    # Establish precedence of .ini configuration files.  For attributes that
+    # are specified in multiple files, the last one in wins.
+
+    # First take /etc/<settings>.ini
     ini_files = [
         pyaas.paths('etc', settings + '.ini'),
+    ]
+
+    # Then take any /etc/<settings>.d/*.ini files, in ASCII-betical order.
+    ini_files_d_dir = pyaas.paths('etc', settings+'.d')
+    if os.path.isdir( ini_files_d_dir ):
+        ini_files += sorted( glob.glob( os.path.join(ini_files_d_dir, "*.ini" ) ) )
+
+    # Then take /etc/<settings>.ini.local
+    ini_files += [
         pyaas.paths('etc', settings + '.ini.local')
     ]
 
+    # Then take any .ini arguments from the command-line.
+    # TODO: Should this overlay all of the above or supplant it entirely?
+    # TODO: ... or should there be a "--ignore-default-configuration" switch as well?
     if pyaas.args.ini:
         ini_files.append(pyaas.args.ini)
 
